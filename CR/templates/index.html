@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatroom</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        #chat-box { width: 50%; height: 300px; border: 1px solid black; overflow-y: auto; margin: auto; padding: 10px; }
+        input, button { padding: 10px; margin-top: 10px; width: 50%; }
+        #admin-controls { display: none; margin-top: 20px; }
+        #pending-users { margin-top: 10px; color: red; }
+    </style>
+</head>
+<body>
+
+    <h2>Live Chatroom</h2>
+    <div id="chat-box"></div>
+    <input type="text" id="message" placeholder="Type a message..." disabled>
+    <button onclick="sendMessage()" disabled>Send</button>
+    
+    <div id="admin-controls">
+        <h3>Admin Controls</h3>
+        <p><b>Pending Users:</b></p>
+        <div id="pending-users">None</div>
+        <input type="text" id="approve-user-id" placeholder="Enter User ID to approve">
+        <button onclick="approveUser()">Approve</button>
+    </div>
+
+    <script>
+        var socket = io.connect("http://localhost:8000");
+        var username = prompt("Enter your name:");
+
+        socket.emit("new_user", username);
+
+        socket.on("message", function(data) {
+            var chatBox = document.getElementById("chat-box");
+            chatBox.innerHTML += "<p>" + data + "</p>";
+            chatBox.scrollTop = chatBox.scrollHeight;
+        });
+
+        socket.on("admin", function() {
+            document.getElementById("admin-controls").style.display = "block";
+        });
+
+        socket.on("pending_users", function(pendingUsers) {
+            var pendingList = document.getElementById("pending-users");
+            pendingList.innerHTML = "";
+            if (Object.keys(pendingUsers).length === 0) {
+                pendingList.innerHTML = "None";
+            } else {
+                for (var sid in pendingUsers) {
+                    pendingList.innerHTML += `<p>${pendingUsers[sid]} (ID: ${sid})</p>`;
+                }
+            }
+        });
+
+        function sendMessage() {
+            var message = document.getElementById("message").value;
+            if (message) {
+                socket.send(message);
+                document.getElementById("message").value = "";
+            }
+        }
+
+        function approveUser() {
+            var userSid = document.getElementById("approve-user-id").value;
+            if (userSid) {
+                socket.emit("approve_user", userSid);
+            }
+        }
+
+        socket.on("approved", function() {
+            document.getElementById("message").disabled = false;
+            document.querySelector("button").disabled = false;
+        });
+    </script>
+
+</body>
+</html>
